@@ -45,10 +45,18 @@ el('logout').addEventListener('click', async () => { try { await api('/api/logou
 el('tab-exam').addEventListener('click', () => selectTab('exam'));
 el('tab-admin').addEventListener('click', () => selectTab('admin'));
 function resetExam() {
-  el('exam-form').reset(); el('summary').hidden = true; el('summary-content').replaceChildren(); message('exam-message', '');
-  el('exam-form').querySelector('input')?.focus();
+  const form = el('exam-form');
+  form.reset();
+  // Disable the previous exam view immediately and clear all old answer nodes.
+  el('summary').hidden = true;
+  el('summary-content').replaceChildren();
+  message('exam-message', 'Neue Prüfung: Bitte fünf Fragennummern eingeben.', 'ok');
+  // Return the examiner to the entry fields even when the last summary was long.
+  form.scrollIntoView({ behavior: 'instant', block: 'start' });
+  form.querySelector('input')?.focus({ preventScroll: true });
 }
 el('reset').addEventListener('click', resetExam);
+el('reset-bottom').addEventListener('click', resetExam);
 el('print').addEventListener('click', () => window.print());
 el('exam-form').addEventListener('submit', async e => {
   e.preventDefault();
