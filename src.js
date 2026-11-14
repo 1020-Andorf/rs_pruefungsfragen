@@ -117,7 +117,7 @@ async function api(request, env) {
   if (path === '/api/questions/selection' && method === 'POST') {
     const data = await request.json().catch(() => ({}));
     const numbers = data.numbers;
-    if (!Array.isArray(numbers) || numbers.length !== 5 || numbers.some(n => !validNum(n)) || new Set(numbers).size !== 5) return error('Genau fünf unterschiedliche gültige Fragennummern eingeben.');
+    if (!Array.isArray(numbers) || numbers.length < 1 || numbers.length > 5 || numbers.some(n => !validNum(n)) || new Set(numbers).size !== numbers.length) return error('Bitte 1 bis 5 unterschiedliche gültige Fragennummern eingeben.');
     return json({ questions: await loadQuestions(env, numbers) });
   }
   if (session.role !== 'admin') return error('Nur Administratoren haben Zugriff.', 403);

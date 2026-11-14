@@ -44,15 +44,18 @@ el('login-form').addEventListener('submit', async e => {
 el('logout').addEventListener('click', async () => { try { await api('/api/logout', { method: 'POST' }); } finally { showSession(null); resetExam(); await refreshChallenge(); } });
 el('tab-exam').addEventListener('click', () => selectTab('exam'));
 el('tab-admin').addEventListener('click', () => selectTab('admin'));
+// Zähler verhindert, dass verspätete Antworten einer alten Abfrage den Reset überschreiben.
+let examRequestVersion = 0;
+let examRequestController = null;
 function resetExam() {
+  examRequestVersion += 1;
+  if (examRequestController) { examRequestController.abort(); examRequestController = null; }
   const form = el('exam-form');
   form.reset();
-  // Disable the previous exam view immediately and clear all old answer nodes.
   el('summary').hidden = true;
   el('summary-content').replaceChildren();
-  message('exam-message', 'Neue Prüfung: Bitte fünf Fragennummern eingeben.', 'ok');
-  // Return the examiner to the entry fields even when the last summary was long.
-  form.scrollIntoView({ behavior: 'instant', block: 'start' });
+  message('exam-message', 'Bereit für den nächsten Prüfling.');
+  el('exam-start').scrollIntoView({ behavior: 'auto', block: 'start' });
   form.querySelector('input')?.focus({ preventScroll: true });
 }
 el('reset').addEventListener('click', resetExam);
@@ -60,28 +63,46 @@ el('reset-bottom').addEventListener('click', resetExam);
 el('print').addEventListener('click', () => window.print());
 el('exam-form').addEventListener('submit', async e => {
   e.preventDefault();
-  const numbers = [...el('exam-form').querySelectorAll('input')].map(x => Number(x.value));
-  if (numbers.some(n => !Number.isInteger(n) || n < 1 || n > 9999) || new Set(numbers).size !== 5) return message('exam-message', 'Bitte fünf unterschiedliche gültige Nummern eingeben.', 'error');
+  const fields = [...el('exam-form').querySelectorAll('input')];
+  const entries = fields.map(field => field.value.trim()).filter(Boolean);
+  if (!entries.length || entries.length > 5 || entries.some(s => !/^\d+$/.test(s) || !Number.isInteger(Number(s)) || Number(s)<1 || Number(s)>9999)) {
+    return message('exam-message', 'Bitte 1 bis 5 gültige Fragennummern eingeben.', 'error');
+  }
+  const numbers = entries.map(Number);
+  if (new Set(numbers).size !== numbers.length) return message('exam-message', 'Bitte keine Fragennummer doppelt eingeben.', 'error');
+  // Alte Ergebnisse sofort entfernen, auch wenn die neue Anfrage fehlschlägt.
+  examRequestVersion += 1;
+  const requestVersion = examRequestVersion;
+  if (examRequestController) examRequestController.abort();
+  examRequestController = new AbortController();
+  el('summary').hidden = true;
+  el('summary-content').replaceChildren();
+  message('exam-message', 'Fragen werden geladen …');
   try {
-    const { questions } = await api('/api/questions/selection', { method: 'POST', body: body({ numbers }) });
+    const { questions } = await api('/api/questions/selection', { method: 'POST', body: body({ numbers }), signal: examRequestController.signal });
+    if (requestVersion !== examRequestVersion) return;
     const root = el('summary-content'); root.replaceChildren();
     for (const q of questions) {
       const card = document.createElement('article'); card.className = 'summary-card';
       const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = `Frage ${q.number}`; card.append(pill);
       const title = document.createElement('h3'); title.textContent = q.missing ? 'Frage im Katalog nicht vorhanden' : q.question; if (q.missing) title.className = 'missing'; card.append(title);
       if (!q.missing) {
-        const label = document.createElement('strong'); label.textContent = 'Musterantwort'; card.append(label);
+        const label = document.createElement('strong'); label.className = 'answer-title'; label.textContent = 'Antwort'; card.append(label);
         const answer = document.createElement('div'); answer.className = 'answer';
         if (q.blocks.length) { for (const b of q.blocks) { const p = document.createElement('p'); p.textContent = b; answer.append(p); } }
-        else answer.textContent = 'Noch keine Musterantwort hinterlegt.';
+        else answer.textContent = 'Noch keine Antwort hinterlegt.';
         card.append(answer);
       }
       root.append(card);
     }
     el('summary').hidden = false;
-    message('exam-message', questions.some(q => q.missing) ? 'Achtung: Mindestens eine Fragennummer existiert noch nicht.' : 'Alle fünf Fragen wurden geladen.', questions.some(q => q.missing) ? 'error' : 'ok');
+    const missing = questions.some(q => q.missing);
+    message('exam-message', missing ? 'Mindestens eine Fragennummer ist nicht im Katalog vorhanden.' : `${questions.length} ${questions.length === 1 ? 'Frage wurde' : 'Fragen wurden'} geladen.`, missing ? 'error' : 'ok');
     el('summary').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } catch (e) { message('exam-message', e.message, 'error'); }
+  } catch (e) {
+    if (requestVersion !== examRequestVersion || e.name === 'AbortError') return;
+    message('exam-message', e.message, 'error');
+  } finally { if (requestVersion === examRequestVersion) examRequestController = null; }
 });
 let editingNum = null;
 async function loadList() {
