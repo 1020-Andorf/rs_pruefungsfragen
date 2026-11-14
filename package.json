@@ -1,0 +1,13 @@
+{
+  "name": "rs-pruefung-1020",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply rs-pruefung-1020 --local",
+    "db:migrate:remote": "wrangler d1 migrations apply rs-pruefung-1020 --remote"
+  },
+  "devDependencies": {"wrangler": "^4.0.0"}
+}
