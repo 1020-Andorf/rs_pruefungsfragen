@@ -22,3 +22,5 @@ Der Worker prüft die Antwort serverseitig anhand eines signierten, kurzlebigen 
 ## Installation
 
 Siehe **ANLEITUNG-GITHUB-CLOUDFLARE.md** für Repository, Cloudflare D1, Secrets und Git-Anbindung.
+
+Test Test Test
