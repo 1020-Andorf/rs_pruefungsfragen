@@ -58,10 +58,12 @@ function resetExam() {
   for (const field of form.querySelectorAll('input')) field.value = '';
   form.reset();
   for (const field of form.querySelectorAll('input')) field.value = '';
+  // Der gesamte Ergebnisbereich wird entfernt, nicht nur visuell versteckt.
+  // Beim nächsten Abruf werden alle Elemente frisch erzeugt.
   const summary = el('summary');
+  summary.replaceChildren();
   summary.hidden = true;
   summary.style.setProperty('display', 'none', 'important');
-  el('summary-content').replaceChildren();
   selectTab('exam');
   message('exam-message', 'Die Auswahl wurde zurückgesetzt. Bereit für den nächsten Prüfling.', 'ok');
   // Scroll ohne Animation und Fokus auf das erste leere Feld.
@@ -78,7 +80,33 @@ document.addEventListener('click', event => {
   event.preventDefault();
   resetExam();
 });
-el('print').addEventListener('click', () => window.print());
+// Auch der Druckbutton entsteht erst, wenn Ergebnisse angezeigt werden.
+document.addEventListener('click', event => {
+  if (event.target.closest('#print')) window.print();
+});
+function prepareSummary() {
+  const summary = el('summary');
+  summary.replaceChildren();
+  const heading = document.createElement('div');
+  heading.className = 'section-head space-top';
+  const title = document.createElement('h2');
+  title.textContent = 'Prüfungszusammenfassung';
+  const print = document.createElement('button');
+  print.id = 'print'; print.type = 'button'; print.className = 'button secondary';
+  print.textContent = 'Drucken / PDF';
+  heading.append(title, print);
+  const content = document.createElement('div');
+  content.id = 'summary-content'; content.className = 'summary-list';
+  const actions = document.createElement('div');
+  actions.className = 'action-row space-top';
+  const reset = document.createElement('button');
+  reset.type = 'button'; reset.className = 'button primary';
+  reset.id = 'reset-bottom'; reset.dataset.resetExam = '';
+  reset.textContent = '↻ Zurücksetzen';
+  actions.append(reset);
+  summary.append(heading, content, actions);
+  return content;
+}
 el('exam-form').addEventListener('submit', async e => {
   e.preventDefault();
   const fields = [...el('exam-form').querySelectorAll('input')];
@@ -93,14 +121,15 @@ el('exam-form').addEventListener('submit', async e => {
   const requestVersion = examRequestVersion;
   if (examRequestController) examRequestController.abort();
   examRequestController = new AbortController();
-  el('summary').hidden = true;
-  el('summary').style.setProperty('display', 'none', 'important');
-  el('summary-content').replaceChildren();
+  const currentSummary = el('summary');
+  currentSummary.hidden = true;
+  currentSummary.style.setProperty('display', 'none', 'important');
+  currentSummary.replaceChildren();
   message('exam-message', 'Fragen werden geladen …');
   try {
     const { questions } = await api('/api/questions/selection', { method: 'POST', body: body({ numbers }), signal: examRequestController.signal });
     if (requestVersion !== examRequestVersion) return;
-    const root = el('summary-content'); root.replaceChildren();
+    const root = prepareSummary();
     for (const q of questions) {
       const card = document.createElement('article'); card.className = 'summary-card';
       const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = `Frage ${q.number}`; card.append(pill);
