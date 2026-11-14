@@ -60,6 +60,7 @@ function resetExam() {
   for (const field of form.querySelectorAll('input')) field.value = '';
   const summary = el('summary');
   summary.hidden = true;
+  summary.style.setProperty('display', 'none', 'important');
   el('summary-content').replaceChildren();
   selectTab('exam');
   message('exam-message', 'Die Auswahl wurde zurückgesetzt. Bereit für den nächsten Prüfling.', 'ok');
@@ -93,6 +94,7 @@ el('exam-form').addEventListener('submit', async e => {
   if (examRequestController) examRequestController.abort();
   examRequestController = new AbortController();
   el('summary').hidden = true;
+  el('summary').style.setProperty('display', 'none', 'important');
   el('summary-content').replaceChildren();
   message('exam-message', 'Fragen werden geladen …');
   try {
@@ -112,6 +114,7 @@ el('exam-form').addEventListener('submit', async e => {
       }
       root.append(card);
     }
+    el('summary').style.removeProperty('display');
     el('summary').hidden = false;
     const missing = questions.some(q => q.missing);
     message('exam-message', missing ? 'Mindestens eine Fragennummer ist nicht im Katalog vorhanden.' : `${questions.length} ${questions.length === 1 ? 'Frage wurde' : 'Fragen wurden'} geladen.`, missing ? 'error' : 'ok');
