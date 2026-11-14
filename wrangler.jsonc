@@ -4,6 +4,6 @@
   "compatibility_date": "2026-11-01",
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
   "d1_databases": [
-    {"binding": "DB", "database_name": "rs-pruefung-1020", "database_id": "HIER_D1_DATENBANK_ID_EINTRAGEN", "migrations_dir": "migrations"}
+    {"binding": "DB", "database_name": "rs-pruefung-1020", "database_id": "731290da-b847-42f0-99ea-1ba24eefe66b", "migrations_dir": "migrations"}
   ]
 }
