@@ -12,13 +12,12 @@ function showSession(role) {
   el('login-panel').hidden = loggedIn;
   el('app-panel').hidden = !loggedIn;
   el('logout').hidden = !loggedIn;
-  el('tab-admin').hidden = role !== 'admin';
+  el('admin-navigation').hidden = role !== 'admin';
   selectTab('exam');
 }
 function selectTab(tab) {
   el('exam-view').hidden = tab !== 'exam';
   el('admin-view').hidden = tab !== 'admin';
-  el('tab-exam').classList.toggle('active', tab === 'exam');
   el('tab-admin').classList.toggle('active', tab === 'admin');
   if (tab === 'admin') loadList();
 }
@@ -42,24 +41,42 @@ el('login-form').addEventListener('submit', async e => {
   } catch (e) { message('login-message', e.message, 'error'); await refreshChallenge(); }
 });
 el('logout').addEventListener('click', async () => { try { await api('/api/logout', { method: 'POST' }); } finally { showSession(null); resetExam(); await refreshChallenge(); } });
-el('tab-exam').addEventListener('click', () => selectTab('exam'));
+el('back-to-exam').addEventListener('click', () => selectTab('exam'));
 el('tab-admin').addEventListener('click', () => selectTab('admin'));
 // Zähler verhindert, dass verspätete Antworten einer alten Abfrage den Reset überschreiben.
 let examRequestVersion = 0;
 let examRequestController = null;
 function resetExam() {
+  // Auch Ergebnisse von noch laufenden API-Anfragen dürfen nicht mehr erscheinen.
   examRequestVersion += 1;
-  if (examRequestController) { examRequestController.abort(); examRequestController = null; }
+  if (examRequestController) {
+    examRequestController.abort();
+    examRequestController = null;
+  }
+  // Alle fünf Felder ausdrücklich leeren (nicht nur form.reset(), das Defaultwerte wiederherstellen könnte).
   const form = el('exam-form');
+  for (const field of form.querySelectorAll('input')) field.value = '';
   form.reset();
-  el('summary').hidden = true;
+  for (const field of form.querySelectorAll('input')) field.value = '';
+  const summary = el('summary');
+  summary.hidden = true;
   el('summary-content').replaceChildren();
-  message('exam-message', 'Bereit für den nächsten Prüfling.');
-  el('exam-start').scrollIntoView({ behavior: 'auto', block: 'start' });
-  form.querySelector('input')?.focus({ preventScroll: true });
+  selectTab('exam');
+  message('exam-message', 'Die Auswahl wurde zurückgesetzt. Bereit für den nächsten Prüfling.', 'ok');
+  // Scroll ohne Animation und Fokus auf das erste leere Feld.
+  const heading = el('exam-start');
+  heading.scrollIntoView({ behavior: 'instant', block: 'start' });
+  const first = form.querySelector('input');
+  if (first) first.focus({ preventScroll: true });
 }
-el('reset').addEventListener('click', resetExam);
-el('reset-bottom').addEventListener('click', resetExam);
+// Event-Delegation erfasst Reset sowohl oben als auch nach den Antworten.
+// Bewusst nur EIN Handler: verhindert versehentliche Mehrfachausführung.
+document.addEventListener('click', event => {
+  const resetButton = event.target.closest('[data-reset-exam]');
+  if (!resetButton) return;
+  event.preventDefault();
+  resetExam();
+});
 el('print').addEventListener('click', () => window.print());
 el('exam-form').addEventListener('submit', async e => {
   e.preventDefault();

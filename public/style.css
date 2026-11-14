@@ -5,3 +5,7 @@
 @media(max-width:700px){.main{padding:19px 13px 50px}.card{padding:17px}.number-grid{gap:7px}.number-grid input{font-size:19px;padding:12px 3px}.number-grid label{font-size:10px}.search-grid{grid-template-columns:1fr}.action-row .button{flex:1}.page-title{margin-bottom:18px}}
 @media(max-width:370px){.number-grid{gap:4px}.number-grid input{font-size:17px}.number-grid label{font-size:9px}}
 @media print{body{background:#fff}.main{max-width:unset;padding:0}#login-panel,.page-heading,.tabs,#exam-start,#admin-view,#print,#summary>.section-head,#summary>.action-row{display:none!important}#summary{display:block!important}.summary-card{break-inside:avoid;border-color:#ccc;margin-bottom:14px}.summary-card .answer{background:white}}
+
+/* Nur der Admin-Einstieg wird oben angezeigt; Prüfungsmodus ist Standard. */
+#admin-navigation[hidden]{display:none!important}
+.admin-back{margin:0 0 16px}
