@@ -48,35 +48,76 @@ let examRequestVersion = 0;
 let examRequestController = null;
 let displayedQuestions = [];
 let activeQuestionIndex = 0;
+let resetCount = 0;
+let pendingFocusTimer = null;
+function setSummaryVisibility(visible) {
+  const summary = el('summary');
+  summary.hidden = !visible;
+  summary.style.display = visible ? '' : 'none';
+  summary.setAttribute('aria-hidden', String(!visible));
+}
+function clearPrintData() {
+  const sheet = el('print-sheet');
+  if (sheet) sheet.replaceChildren();
+  const form = el('print-meta-form');
+  if (form) form.reset();
+}
+function assertExamCleared() {
+  const summary = el('summary');
+  const sheet = el('print-sheet');
+  const cleared = summary.childElementCount === 0 && summary.hidden &&
+    summary.style.display === 'none' && !displayedQuestions.length &&
+    (!sheet || sheet.childElementCount === 0);
+  if (!cleared) console.error('[RS Prüfungsfragen] Reset-Prüfung fehlgeschlagen', {
+    children: summary.childElementCount, hidden: summary.hidden,
+    display: summary.style.display, questions: displayedQuestions.length,
+    printChildren: sheet?.childElementCount
+  });
+  return cleared;
+}
+
 function clearExamResults() {
   displayedQuestions = [];
   activeQuestionIndex = 0;
+  // Sowohl die sichtbare Ansicht als auch den getrennten Druckbaum löschen.
   const summary = el('summary');
-  // Sofort verstecken, dann alle von JS generierten Elemente entfernen.
-  summary.hidden = true;
+  setSummaryVisibility(false);
   summary.replaceChildren();
-  summary.setAttribute('aria-hidden', 'true');
+  clearPrintData();
+  if (pendingFocusTimer !== null) {
+    window.clearTimeout(pendingFocusTimer);
+    pendingFocusTimer = null;
+  }
 }
 function resetExam() {
-  // Auch Ergebnisse von noch laufenden API-Anfragen dürfen nicht mehr erscheinen.
-  examRequestVersion += 1;
+  // Eine verspätete Antwort darf nach einem Reset nichts neu rendern.
+  const currentReset = ++resetCount;
+  ++examRequestVersion;
   if (examRequestController) {
     examRequestController.abort();
     examRequestController = null;
   }
-  // Alle fünf Felder ausdrücklich leeren (nicht nur form.reset(), das Defaultwerte wiederherstellen könnte).
   const form = el('exam-form');
-  for (const field of form.querySelectorAll('input')) field.value = '';
   form.reset();
   for (const field of form.querySelectorAll('input')) field.value = '';
   clearExamResults();
+  if (el('print-dialog').open) el('print-dialog').close();
   selectTab('exam');
-  message('exam-message', 'Die Auswahl wurde zurückgesetzt. Bereit für den nächsten Prüfling.', 'ok');
-  // Scroll ohne Animation und Fokus auf das erste leere Feld.
-  const heading = el('exam-start');
-  heading.scrollIntoView({ behavior: 'auto', block: 'start' });
-  const first = form.querySelector('input');
-  if (first) first.focus({ preventScroll: true });
+  if (!assertExamCleared()) {
+    // Sicherheitsnetz: vollständigen Ergebnisbereich durch frischen Knoten ersetzen.
+    const oldSummary = el('summary');
+    const fresh = document.createElement('section');
+    fresh.id = 'summary';
+    fresh.hidden = true;
+    fresh.style.display = 'none';
+    fresh.setAttribute('aria-hidden', 'true');
+    fresh.setAttribute('aria-live', 'polite');
+    oldSummary.replaceWith(fresh);
+  }
+  message('exam-message', 'Zurückgesetzt – neue Fragennummern eingeben.', 'ok');
+  el('exam-start').scrollIntoView({ behavior: 'instant', block: 'start' });
+  form.querySelector('input')?.focus({ preventScroll: true });
+  console.info('[RS Prüfungsfragen] Reset abgeschlossen', {reset: currentReset, ok: assertExamCleared()});
 }
 // Event-Delegation erfasst Reset sowohl oben als auch nach den Antworten.
 // Bewusst nur EIN Handler: verhindert versehentliche Mehrfachausführung.
@@ -86,10 +127,50 @@ document.addEventListener('click', event => {
   event.preventDefault();
   resetExam();
 });
-// Auch der Druckbutton entsteht erst, wenn Ergebnisse angezeigt werden.
+// Print-Dialog: erst Metadaten erfassen, dann drucken oder als PDF speichern.
 document.addEventListener('click', event => {
-  if (event.target.closest('#print')) window.print();
+  if (event.target.closest('#print')) {
+    if (!displayedQuestions.length) return;
+    el('print-dialog').showModal();
+    el('print-place').focus();
+  }
 });
+el('print-cancel').addEventListener('click', () => el('print-dialog').close());
+el('print-meta-form').addEventListener('submit', event => {
+  event.preventDefault();
+  if (!displayedQuestions.length || !el('summary').childElementCount) return;
+  const place = el('print-place').value.trim();
+  const dateValue = el('print-date').value;
+  const participant = el('print-participant').value.trim();
+  if (!place || !dateValue || !participant) return;
+  renderPrintSheet({place, dateValue, participant});
+  el('print-dialog').close();
+  window.print();
+});
+function renderPrintSheet({place,dateValue,participant}) {
+  const sheet = el('print-sheet');
+  sheet.replaceChildren();
+  const header = document.createElement('header');
+  header.className = 'print-heading';
+  const headline = document.createElement('h1');
+  headline.textContent = 'RS Prüfungsfragen';
+  const meta = document.createElement('div');
+  meta.className = 'print-meta';
+  for (const [label, value] of [
+    ['Prüfungsort', place],
+    ['Termin', new Date(dateValue+'T12:00:00').toLocaleDateString('de-AT', {day:'2-digit',month:'2-digit',year:'numeric'})],
+    ['Teilnehmername', participant]
+  ]) {
+    const item = document.createElement('div');
+    const key = document.createElement('strong'); key.textContent = label + ': ';
+    item.append(key, document.createTextNode(value)); meta.append(item);
+  }
+  header.append(headline,meta);
+  const questions = document.createElement('div'); questions.className='print-questions';
+  for (const q of displayedQuestions) questions.append(createQuestionCard(q));
+  sheet.append(header, questions);
+}
+
 function createQuestionCard(q) {
   const card = document.createElement('article'); card.className = 'summary-card';
   const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = `Frage ${q.number}`; card.append(pill);
@@ -154,10 +235,8 @@ function prepareSummary() {
   carousel.append(prev,stage,next);
   const actions = document.createElement('div'); actions.className = 'action-row space-top';
   const reset = document.createElement('button'); reset.type='button'; reset.className='button secondary'; reset.dataset.resetExam=''; reset.textContent='↻ Zurücksetzen'; actions.append(reset);
-  const printAll = document.createElement('div'); printAll.className='print-all';
-  for (const q of displayedQuestions) printAll.append(createQuestionCard(q));
-  summary.append(heading,carousel,counter,actions,printAll);
-  summary.removeAttribute('aria-hidden');
+  summary.append(heading,carousel,counter,actions);
+  setSummaryVisibility(true);
 }
 el('exam-form').addEventListener('submit', async e => {
   e.preventDefault();
@@ -182,11 +261,11 @@ el('exam-form').addEventListener('submit', async e => {
     activeQuestionIndex = 0;
     prepareSummary();
     renderQuestionCarousel();
-    el('summary').hidden = false;
+    setSummaryVisibility(true);
     const missing = questions.some(q => q.missing);
     message('exam-message', missing ? 'Mindestens eine Fragennummer ist nicht im Katalog vorhanden.' : `${questions.length} ${questions.length === 1 ? 'Frage wurde' : 'Fragen wurden'} geladen.`, missing ? 'error' : 'ok');
     el('summary').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    window.setTimeout(() => el('carousel-stage')?.focus({ preventScroll: true }), 250);
+    pendingFocusTimer = window.setTimeout(() => { if (requestVersion === examRequestVersion) el('carousel-stage')?.focus({ preventScroll: true }); pendingFocusTimer = null; }, 250);
   } catch (e) {
     if (requestVersion !== examRequestVersion || e.name === 'AbortError') return;
     message('exam-message', e.message, 'error');

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#f6f7f8"><title>RS Prüfungsfragen</title><link rel="stylesheet" href="/style.css?v=6"></head>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#f6f7f8"><title>RS Prüfungsfragen</title><link rel="stylesheet" href="/style.css?v=7"></head>
 <body><main class="main">
 <section id="login-panel" class="login-wrap">
   <h1 class="page-title">RS <span>Prüfungsfragen</span></h1>
@@ -38,4 +38,17 @@
     <div class="admin-peek" id="admin-peek" aria-live="polite"></div>
     <button type="button" id="admin-next" class="nav-arrow" aria-label="Nächste Frage">›</button>
   </div><form id="edit-form" class="form-stack"><label>Fragennummer<input id="edit-number" type="number" min="1" max="9999" required></label><label>Vollständige Prüfungsfrage<textarea id="edit-question" rows="4" required></textarea></label><div class="section-head"><h3>Antwortbausteine</h3><button id="add-block" type="button" class="button secondary">+ Baustein</button></div><div id="blocks" class="form-stack"></div><div class="action-row"><button class="button primary" type="submit">Änderungen speichern</button><button class="button secondary" type="button" id="cancel-edit">Eingaben zurücksetzen</button></div><p id="edit-message" class="message" role="status"></p></form></section></div>
-</section></main><script src="/app.js?v=6" defer></script></body></html>
+</section>
+<dialog id="print-dialog" aria-labelledby="print-dialog-title" class="print-dialog">
+ <form id="print-meta-form" class="form-stack">
+  <h2 id="print-dialog-title">Drucken / PDF exportieren</h2>
+  <p class="subtle">Diese Angaben erscheinen in der Kopfzeile des Prüfungsbogens und werden nicht gespeichert.</p>
+  <label>Prüfungsort<input id="print-place" maxlength="150" autocomplete="off" required placeholder="z. B. Andorf"></label>
+  <label>Termin<input id="print-date" type="date" required></label>
+  <label>Teilnehmername<input id="print-participant" maxlength="150" autocomplete="off" required placeholder="Vor- und Nachname"></label>
+  <div class="action-row"><button class="button primary" type="submit">Drucken / Als PDF speichern</button><button class="button secondary" id="print-cancel" type="button">Abbrechen</button></div>
+ </form>
+</dialog>
+</main>
+<div id="print-sheet" aria-hidden="true"></div>
+<script src="/app.js?v=7" defer></script></body></html>
