@@ -144,7 +144,7 @@ function validateExamInput(field, index, {show = true} = {}) {
 }
 EXAM_INPUTS.forEach((field, index) => {
   field.min = '1'; field.max = '300'; field.step = '1';
-  field.setAttribute('aria-describedby', `number-hint-${index+1} number-error-${index+1}`);
+  field.setAttribute('aria-describedby', `number-error-${index+1}`);
   field.addEventListener('input', () => validateExamInput(field, index));
   field.addEventListener('blur', () => validateExamInput(field, index));
 });
