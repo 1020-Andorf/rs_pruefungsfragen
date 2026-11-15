@@ -113,37 +113,95 @@ window.rsResetExam = resetExam;
 // Event-Delegation erfasst Reset sowohl oben als auch nach den Antworten.
 // Bewusst nur EIN Handler: verhindert versehentliche Mehrfachausführung.
 document.addEventListener('click', event => { const b = event.target.closest?.('[data-reset-exam]'); if (b) { event.preventDefault(); resetExam(); } });
+const TOPIC_NAMES = {
+  1: 'Gerätelehre und Sanitätstechnik',
+  2: 'Sanitätshilfe',
+  3: 'Rettungswesen'
+};
+
+// Rendert die vorhandenen Original-Textbausteine, ohne deren Wortlaut zu verändern.
+// Abschnitte vor Listen werden als Untertitel dargestellt, Aufzählungen als ruhige Listenzeilen.
+function renderAnswerContent(target, q) {
+  target.replaceChildren();
+  const source = q.content || (q.blocks || []).map(content => ({type: 'text', content}));
+  const texts = source.filter(item => item.type !== 'image');
+  let currentList = null;
+  const appendPlain = (value, kind) => {
+    const node = document.createElement(kind === 'heading' ? 'h4' : 'p');
+    node.className = kind === 'heading' ? 'answer-section-title' : 'answer-paragraph';
+    node.textContent = value;
+    target.append(node);
+  };
+  for (let i = 0; i < texts.length; i++) {
+    const raw = String(texts[i].content ?? '').trim();
+    if (!raw) continue;
+    const bullet = raw.match(/^[•●▪]\s*/u);
+    if (bullet) {
+      if (!currentList) {
+        currentList = document.createElement('ul');
+        currentList.className = 'answer-list';
+        target.append(currentList);
+      }
+      const li = document.createElement('li');
+      li.textContent = raw.slice(bullet[0].length);
+      currentList.append(li);
+    } else {
+      currentList = null;
+      const next = texts.slice(i + 1).find(item => String(item.content ?? '').trim());
+      const nextBullet = next && /^[•●▪]\s*/u.test(String(next.content).trim());
+      appendPlain(raw, nextBullet && raw.length <= 120 && !raw.includes('\n') ? 'heading' : 'paragraph');
+    }
+  }
+  const images = source.filter(item => item.type === 'image');
+  if (images.length) {
+    const figureWrap = document.createElement('div');
+    figureWrap.className = 'answer-figures';
+    for (const item of images) {
+      const img = document.createElement('img');
+      img.src = item.path;
+      img.alt = `Abbildung aus der Antwort zu Frage ${q.number}`;
+      img.loading = 'lazy';
+      img.className = 'answer-image';
+      figureWrap.append(img);
+    }
+    target.append(figureWrap);
+  }
+  if (!target.childNodes.length) target.textContent = 'Noch keine Gesamtantwort hinterlegt.';
+}
+
 function createQuestionCard(q) {
-  const card = document.createElement('article'); card.className = 'summary-card topic-' + (q._topic || 1);
-  const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = `Frage ${q.number}`; card.append(pill);
-  const title = document.createElement('h3'); title.textContent = q.missing ? 'Frage im Katalog nicht vorhanden' : q.question;
-  if (q.missing) title.className = 'missing'; card.append(title);
+  const topic = q._topic || 1;
+  const card = document.createElement('article');
+  card.className = 'summary-card topic-' + topic;
+  const meta = document.createElement('div'); meta.className = 'question-meta';
+  const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = `Frage ${q.number}`;
+  const subject = document.createElement('span'); subject.className = 'question-topic'; subject.textContent = TOPIC_NAMES[topic];
+  meta.append(pill, subject); card.append(meta);
+  const title = document.createElement('h3');
+  title.textContent = q.missing ? 'Frage im Katalog nicht vorhanden' : q.question;
+  if (q.missing) title.className = 'missing';
+  card.append(title);
   if (!q.missing) {
-    const switcher = document.createElement('div'); switcher.className='answer-switch';
-    const full = document.createElement('button'); full.type='button'; full.className='answer-option selected'; full.textContent='Gesamtantwort';
-    const short = document.createElement('button'); short.type='button'; short.className='answer-option'; short.textContent='Kurzantwort';
-    const area = document.createElement('div'); area.className='answer';
+    const switcher = document.createElement('div'); switcher.className = 'answer-switch';
+    const full = document.createElement('button'); full.type = 'button'; full.className = 'answer-option selected'; full.textContent = 'Gesamtantwort';
+    const short = document.createElement('button'); short.type = 'button'; short.className = 'answer-option'; short.textContent = 'Kurzantwort';
+    const area = document.createElement('div'); area.className = 'answer refined-answer';
     const draw = mode => {
       area.replaceChildren();
-      full.classList.toggle('selected',mode==='full'); short.classList.toggle('selected',mode==='short');
-      full.setAttribute('aria-pressed',String(mode==='full')); short.setAttribute('aria-pressed',String(mode==='short'));
-      if(mode==='short') {
-        const p=document.createElement('p'); p.textContent=q.short_answer?.trim() || 'Keine Kurzantwort hinterlegt.'; area.append(p);
-      } else {
-        const contents=q.content || (q.blocks||[]).map(content=>({type:'text',content}));
-        // Erst vollständige Antwort, danach zugehörige Grafiken.
-        for(const item of [...contents.filter(x=>x.type!=='image'),...contents.filter(x=>x.type==='image')]) {
-          if(item.type==='image') {
-            const img=document.createElement('img'); img.src=item.path; img.alt=`Grafik zu Frage ${q.number}`; img.loading='lazy'; img.className='answer-image'; area.append(img);
-          } else {
-            const p=document.createElement('p'); p.textContent=item.content; area.append(p);
-          }
-        }
-        if(!area.childNodes.length) area.textContent='Noch keine Gesamtantwort hinterlegt.';
-      }
+      full.classList.toggle('selected', mode === 'full');
+      short.classList.toggle('selected', mode === 'short');
+      full.setAttribute('aria-pressed', String(mode === 'full'));
+      short.setAttribute('aria-pressed', String(mode === 'short'));
+      if (mode === 'short') {
+        const p = document.createElement('p'); p.className = 'answer-paragraph';
+        p.textContent = q.short_answer?.trim() || 'Keine Kurzantwort hinterlegt.';
+        area.append(p);
+      } else renderAnswerContent(area, q);
     };
-    full.addEventListener('click',()=>draw('full')); short.addEventListener('click',()=>draw('short'));
-    switcher.append(full,short); card.append(switcher,area); draw('full');
+    full.addEventListener('click', () => draw('full'));
+    short.addEventListener('click', () => draw('short'));
+    switcher.append(full, short); card.append(switcher, area);
+    draw('full');
   }
   return card;
 }
@@ -153,46 +211,64 @@ function moveQuestion(delta) {
   activeQuestionIndex = next;
   renderQuestionCarousel();
 }
+function jumpToQuestion(index) {
+  if (!Number.isInteger(index) || index < 0 || index >= displayedQuestions.length) return;
+  activeQuestionIndex = index;
+  renderQuestionCarousel();
+}
 function renderQuestionCarousel() {
   const stage = el('carousel-stage');
   if (!stage) return;
-  stage.replaceChildren();
-  for (const offset of [-1,0,1]) {
-    const index = activeQuestionIndex + offset;
-    const slot = document.createElement('div');
-    slot.className = 'carousel-slot ' + (offset === 0 ? 'selected' : 'peek');
-    if (index >= 0 && index < displayedQuestions.length) {
-      if (offset === 0) slot.append(createQuestionCard(displayedQuestions[index]));
-      else {
-        const peek = document.createElement('button');
-        peek.type = 'button'; peek.className = 'peek-card topic-' + (displayedQuestions[index]._topic || 1);
-        peek.setAttribute('aria-label', `Zu Frage ${displayedQuestions[index].number} wechseln`);
-        const badge = document.createElement('span'); badge.textContent = `Frage ${displayedQuestions[index].number}`;
-        peek.append(badge); peek.addEventListener('click', () => moveQuestion(offset)); slot.append(peek);
-      }
-    }
-    stage.append(slot);
-  }
+  stage.replaceChildren(createQuestionCard(displayedQuestions[activeQuestionIndex]));
   el('carousel-prev').disabled = activeQuestionIndex === 0;
   el('carousel-next').disabled = activeQuestionIndex === displayedQuestions.length - 1;
   el('carousel-counter').textContent = `${activeQuestionIndex + 1} von ${displayedQuestions.length}`;
+  const nav = el('question-pills');
+  nav.replaceChildren();
+  displayedQuestions.forEach((q, index) => {
+    const chip = document.createElement('button'); chip.type = 'button';
+    chip.className = 'question-chip topic-' + (q._topic || 1) + (index === activeQuestionIndex ? ' active' : '');
+    chip.textContent = `Frage ${q.number}`;
+    chip.setAttribute('aria-label', `Frage ${q.number} – ${TOPIC_NAMES[q._topic || 1]}`);
+    chip.setAttribute('aria-current', index === activeQuestionIndex ? 'step' : 'false');
+    chip.addEventListener('click', () => jumpToQuestion(index));
+    nav.append(chip);
+  });
 }
 function prepareSummary() {
   const summary = el('summary');
   summary.replaceChildren();
-  const carousel = document.createElement('div'); carousel.className = 'question-carousel';
-  const prev = document.createElement('button'); prev.type='button'; prev.id='carousel-prev'; prev.className='nav-arrow'; prev.textContent='‹'; prev.setAttribute('aria-label','Vorherige Frage'); prev.addEventListener('click',()=>moveQuestion(-1));
-  const next = document.createElement('button'); next.type='button'; next.id='carousel-next'; next.className='nav-arrow'; next.textContent='›'; next.setAttribute('aria-label','Nächste Frage'); next.addEventListener('click',()=>moveQuestion(1));
-  const stage = document.createElement('div'); stage.id='carousel-stage'; stage.className='carousel-stage'; stage.tabIndex=0; stage.setAttribute('aria-label','Fragenkarten, Pfeiltasten links und rechts zum Wechseln');
-  stage.addEventListener('keydown',event => { if (event.key==='ArrowRight' || event.key==='ArrowLeft') { event.preventDefault(); moveQuestion(event.key==='ArrowRight'?1:-1); } });
+  const carousel = document.createElement('div'); carousel.className = 'question-carousel-v13';
+  const prev = document.createElement('button'); prev.type = 'button'; prev.id = 'carousel-prev';
+  prev.className = 'nav-arrow'; prev.textContent = '‹'; prev.setAttribute('aria-label', 'Vorherige Frage');
+  prev.addEventListener('click', () => moveQuestion(-1));
+  const next = document.createElement('button'); next.type = 'button'; next.id = 'carousel-next';
+  next.className = 'nav-arrow'; next.textContent = '›'; next.setAttribute('aria-label', 'Nächste Frage');
+  next.addEventListener('click', () => moveQuestion(1));
+  const stage = document.createElement('div'); stage.id = 'carousel-stage'; stage.className = 'carousel-stage-v13';
+  stage.tabIndex = 0; stage.setAttribute('aria-label', 'Aktuelle Frage – Pfeiltasten links und rechts zum Wechseln');
+  stage.addEventListener('keydown', event => {
+    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      event.preventDefault(); moveQuestion(event.key === 'ArrowRight' ? 1 : -1);
+    }
+  });
   let touchX = null;
-  stage.addEventListener('touchstart',event=>{touchX=event.touches[0]?.clientX??null},{passive:true});
-  stage.addEventListener('touchend',event=>{if(touchX===null)return; const diff=event.changedTouches[0].clientX-touchX; touchX=null;if(Math.abs(diff)>55)moveQuestion(diff<0?1:-1);},{passive:true});
-  const counter = document.createElement('div'); counter.className='carousel-counter'; counter.id='carousel-counter'; counter.setAttribute('aria-live','polite');
-  carousel.append(prev,stage,next);
+  stage.addEventListener('touchstart', event => { touchX = event.touches[0]?.clientX ?? null; }, {passive: true});
+  stage.addEventListener('touchend', event => {
+    if (touchX === null) return;
+    const delta = event.changedTouches[0].clientX - touchX; touchX = null;
+    if (Math.abs(delta) > 65) moveQuestion(delta < 0 ? 1 : -1);
+  }, {passive: true});
+  carousel.append(prev, stage, next);
+  const nav = document.createElement('nav'); nav.className = 'question-pills'; nav.id = 'question-pills';
+  nav.setAttribute('aria-label', 'Direkt zu einer ausgewählten Frage wechseln');
+  const counter = document.createElement('div'); counter.className = 'carousel-counter';
+  counter.id = 'carousel-counter'; counter.setAttribute('aria-live', 'polite');
   const actions = document.createElement('div'); actions.className = 'action-row space-top';
-  const reset = document.createElement('button'); reset.type='button'; reset.className='button secondary'; reset.dataset.resetExam=''; reset.textContent='↻ Zurücksetzen'; actions.append(reset);
-  summary.append(carousel,counter,actions);
+  const reset = document.createElement('button'); reset.type = 'button';
+  reset.className = 'button secondary'; reset.dataset.resetExam = '';
+  reset.textContent = '↻ Zurücksetzen'; actions.append(reset);
+  summary.append(carousel, nav, counter, actions);
   setSummaryVisibility(true);
 }
 el('exam-form').addEventListener('submit', async e => {
