@@ -60,7 +60,7 @@ function clearPrintData() {
   const sheet = el('print-sheet');
   if (sheet) sheet.replaceChildren();
   const form = el('print-meta-form');
-  if (form) form.reset();
+  if (form) HTMLFormElement.prototype.reset.call(form);
 }
 function assertExamCleared() {
   const summary = el('summary');
@@ -168,12 +168,11 @@ function renderPrintSheet({place,dateValue,participant}) {
 }
 
 function createQuestionCard(q) {
-  const card = document.createElement('article'); card.className = 'summary-card';
+  const card = document.createElement('article'); card.className = 'summary-card topic-' + (q._topic || 1);
   const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = `Frage ${q.number}`; card.append(pill);
   const title = document.createElement('h3'); title.textContent = q.missing ? 'Frage im Katalog nicht vorhanden' : q.question;
   if (q.missing) title.className = 'missing'; card.append(title);
   if (!q.missing) {
-    const label = document.createElement('strong'); label.className = 'answer-title'; label.textContent = 'Antwort'; card.append(label);
     const answer = document.createElement('div'); answer.className = 'answer';
     if (q.blocks.length) for (const b of q.blocks) {
       const p = document.createElement('p'); p.textContent = b; answer.append(p);
@@ -200,7 +199,7 @@ function renderQuestionCarousel() {
       if (offset === 0) slot.append(createQuestionCard(displayedQuestions[index]));
       else {
         const peek = document.createElement('button');
-        peek.type = 'button'; peek.className = 'peek-card';
+        peek.type = 'button'; peek.className = 'peek-card topic-' + (displayedQuestions[index]._topic || 1);
         peek.setAttribute('aria-label', `Zu Frage ${displayedQuestions[index].number} wechseln`);
         const badge = document.createElement('span'); badge.textContent = `Frage ${displayedQuestions[index].number}`;
         peek.append(badge); peek.addEventListener('click', () => moveQuestion(offset)); slot.append(peek);
@@ -237,7 +236,8 @@ function prepareSummary() {
 el('exam-form').addEventListener('submit', async e => {
   e.preventDefault();
   const fields = [...el('exam-form').querySelectorAll('input')];
-  const entries = fields.map(field => field.value.trim()).filter(Boolean);
+  const selectedSlots = fields.map((field, index) => ({ value: field.value.trim(), position: index })).filter(slot => slot.value);
+  const entries = selectedSlots.map(slot => slot.value);
   if (!entries.length || entries.length > 5 || entries.some(s => !/^\d+$/.test(s) || !Number.isInteger(Number(s)) || Number(s)<1 || Number(s)>9999)) {
     return message('exam-message', 'Bitte 1 bis 5 gültige Fragennummern eingeben.', 'error');
   }
@@ -253,7 +253,7 @@ el('exam-form').addEventListener('submit', async e => {
   try {
     const { questions } = await api('/api/questions/selection', { method: 'POST', body: body({ numbers }), signal: examRequestController.signal });
     if (requestVersion !== examRequestVersion) return;
-    displayedQuestions = questions;
+    displayedQuestions = questions.map((q, index) => ({...q, _topic: selectedSlots[index].position < 2 ? 1 : selectedSlots[index].position < 4 ? 2 : 3}));
     activeQuestionIndex = 0;
     prepareSummary();
     renderQuestionCarousel();
