@@ -37,7 +37,7 @@ el('login-form').addEventListener('submit', async e => {
   try {
     const admin = el('admin-checkbox').checked;
     const data = await api('/api/login', { method: 'POST', body: body({ solution: el('solution').value, role: admin ? 'admin' : 'examiner', adminCode: admin ? el('admin-code').value : undefined }) });
-    el('login-form').reset(); el('admin-label').hidden = true; showSession(data.role);
+    HTMLFormElement.prototype.reset.call(el('login-form')); el('admin-label').hidden = true; showSession(data.role);
   } catch (e) { message('login-message', e.message, 'error'); await refreshChallenge(); }
 });
 el('logout').addEventListener('click', async () => { try { await api('/api/logout', { method: 'POST' }); } finally { showSession(null); resetExam(); await refreshChallenge(); } });
@@ -112,18 +112,38 @@ function resetExam() {
 window.rsResetExam = resetExam;
 // Event-Delegation erfasst Reset sowohl oben als auch nach den Antworten.
 // Bewusst nur EIN Handler: verhindert versehentliche Mehrfachausführung.
-// Reset buttons are handled by a capture-phase safety handler embedded in index.html.
+document.addEventListener('click', event => { const b = event.target.closest?.('[data-reset-exam]'); if (b) { event.preventDefault(); resetExam(); } });
 function createQuestionCard(q) {
   const card = document.createElement('article'); card.className = 'summary-card topic-' + (q._topic || 1);
   const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = `Frage ${q.number}`; card.append(pill);
   const title = document.createElement('h3'); title.textContent = q.missing ? 'Frage im Katalog nicht vorhanden' : q.question;
   if (q.missing) title.className = 'missing'; card.append(title);
   if (!q.missing) {
-    const answer = document.createElement('div'); answer.className = 'answer';
-    if (q.blocks.length) for (const b of q.blocks) {
-      const p = document.createElement('p'); p.textContent = b; answer.append(p);
-    } else answer.textContent = 'Noch keine Antwort hinterlegt.';
-    card.append(answer);
+    const switcher = document.createElement('div'); switcher.className='answer-switch';
+    const full = document.createElement('button'); full.type='button'; full.className='answer-option selected'; full.textContent='Gesamtantwort';
+    const short = document.createElement('button'); short.type='button'; short.className='answer-option'; short.textContent='Kurzantwort';
+    const area = document.createElement('div'); area.className='answer';
+    const draw = mode => {
+      area.replaceChildren();
+      full.classList.toggle('selected',mode==='full'); short.classList.toggle('selected',mode==='short');
+      full.setAttribute('aria-pressed',String(mode==='full')); short.setAttribute('aria-pressed',String(mode==='short'));
+      if(mode==='short') {
+        const p=document.createElement('p'); p.textContent=q.short_answer?.trim() || 'Keine Kurzantwort hinterlegt.'; area.append(p);
+      } else {
+        const contents=q.content || (q.blocks||[]).map(content=>({type:'text',content}));
+        // Erst vollständige Antwort, danach zugehörige Grafiken.
+        for(const item of [...contents.filter(x=>x.type!=='image'),...contents.filter(x=>x.type==='image')]) {
+          if(item.type==='image') {
+            const img=document.createElement('img'); img.src=item.path; img.alt=`Grafik zu Frage ${q.number}`; img.loading='lazy'; img.className='answer-image'; area.append(img);
+          } else {
+            const p=document.createElement('p'); p.textContent=item.content; area.append(p);
+          }
+        }
+        if(!area.childNodes.length) area.textContent='Noch keine Gesamtantwort hinterlegt.';
+      }
+    };
+    full.addEventListener('click',()=>draw('full')); short.addEventListener('click',()=>draw('short'));
+    switcher.append(full,short); card.append(switcher,area); draw('full');
   }
   return card;
 }
@@ -238,7 +258,7 @@ function hasUnsavedAdminChanges() {
 }
 let editSnapshot = '';
 function editorValues() {
-  return {number: el('edit-number').value, question: el('edit-question').value, blocks: [...el('blocks').querySelectorAll('textarea')].map(x => x.value)};
+  return {number: el('edit-number').value, question: el('edit-question').value, short_answer:el('edit-short').value,subject_area:el('edit-subject').value,content:readEditorContent()};
 }
 async function navigateAdmin(delta) {
   if (hasUnsavedAdminChanges() && !window.confirm('Ungespeicherte Änderungen verwerfen und zur nächsten Frage wechseln?')) return;
@@ -269,15 +289,28 @@ async function loadList() {
 }
 let searchTimer;
 el('question-search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(loadList, 200); });
+function readEditorContent() {
+  return [...el('blocks').children].map(wrap => wrap.dataset.kind==='image'
+    ? {type:'image',path:wrap.dataset.path}
+    : {type:'text',content:wrap.querySelector('textarea').value});
+}
+function addImage(path) {
+  const wrap=document.createElement('div'); wrap.className='answer-block media-block'; wrap.dataset.kind='image';wrap.dataset.path=path;
+  const img=document.createElement('img'); img.src=path;img.className='answer-image';img.alt='Grafik der Gesamtantwort';
+  const caption=document.createElement('div'); caption.className='block-heading';
+  const label=document.createElement('span');label.textContent='Grafik: '+path.split('/').pop();
+  const remove=document.createElement('button');remove.type='button';remove.className='button secondary';remove.textContent='Grafik entfernen';remove.onclick=()=>wrap.remove();
+  caption.append(label,remove);wrap.append(caption,img);el('blocks').append(wrap);
+}
 function addBlock(value = '') {
-  const wrap = document.createElement('div'); wrap.className = 'answer-block';
+  const wrap = document.createElement('div'); wrap.className = 'answer-block'; wrap.dataset.kind='text';
   const heading = document.createElement('div'); heading.className = 'block-heading';
-  const text = document.createElement('span'); text.textContent = 'Antwortbaustein';
+  const text = document.createElement('span'); text.textContent = 'Textbaustein';
   const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'button secondary'; remove.textContent = 'Entfernen'; remove.addEventListener('click', () => wrap.remove());
-  const area = document.createElement('textarea'); area.rows = 4; area.maxLength = 20000; area.value = value; area.setAttribute('aria-label', 'Antwortbaustein');
+  const area = document.createElement('textarea'); area.rows = 4; area.maxLength = 20000; area.value = value; area.setAttribute('aria-label', 'Gesamtantwort-Textbaustein');
   heading.append(text, remove); wrap.append(heading, area); el('blocks').append(wrap);
 }
-function blankEditor() { editingNum = null; el('edit-number').readOnly = false; el('edit-form').reset(); el('blocks').replaceChildren(); addBlock(); editSnapshot = JSON.stringify(editorValues()); refreshAdminNavigator(); message('edit-message', ''); }
+function blankEditor() { editingNum = null; el('edit-number').readOnly = false; HTMLFormElement.prototype.reset.call(el('edit-form')); el('blocks').replaceChildren(); addBlock(); editSnapshot = JSON.stringify(editorValues()); refreshAdminNavigator(); message('edit-message', ''); }
 el('new-question').addEventListener('click', () => { blankEditor(); el('edit-panel').scrollIntoView({ behavior: 'smooth' }); el('edit-number').focus(); });
 el('cancel-edit').addEventListener('click', blankEditor);
 el('add-block').addEventListener('click', () => addBlock());
@@ -288,8 +321,9 @@ async function loadQuestion(number) {
     if (version !== adminLoadVersion) return;
     editingNum = number; el('edit-number').value = number; el('edit-number').readOnly = true;
     el('edit-question').value = question.question;
-    el('blocks').replaceChildren(); for (const block of question.blocks) addBlock(block);
-    if (!question.blocks.length) addBlock();
+    el('edit-short').value=question.short_answer || ''; el('edit-subject').value=question.subject_area || '';
+    el('blocks').replaceChildren(); for(const item of question.content || (question.blocks||[]).map(content=>({type:'text',content}))) {if(item.type==='image') addImage(item.path);else addBlock(item.content);}
+    if (!el('blocks').children.length) addBlock();
     editSnapshot = JSON.stringify(editorValues());
     refreshAdminNavigator();
     message('edit-message', 'Frage geladen. Änderungen erst nach „Speichern“ dauerhaft.');
@@ -301,7 +335,7 @@ el('new-question').addEventListener('click', () => { el('edit-number').readOnly 
 el('cancel-edit').addEventListener('click', () => { el('edit-number').readOnly = false; });
 el('edit-form').addEventListener('submit', async e => {
   e.preventDefault();
-  const data = { number: Number(el('edit-number').value), question: el('edit-question').value, blocks: [...el('blocks').querySelectorAll('textarea')].map(x => x.value) };
+  const data = { number: Number(el('edit-number').value), question: el('edit-question').value, short_answer:el('edit-short').value, subject_area:el('edit-subject').value, content:readEditorContent() };
   if (editingNum !== null && data.number !== editingNum) return message('edit-message', 'Die Nummer einer bestehenden Frage kann nicht geändert werden.', 'error');
   try { await api('/api/questions', { method: 'PUT', body: body(data) }); editingNum = data.number; el('edit-number').readOnly = true; editSnapshot = JSON.stringify(editorValues()); message('edit-message', 'Frage und Antwortbausteine gespeichert.', 'ok'); await loadList(); refreshAdminNavigator(); }
   catch (e) { message('edit-message', e.message, 'error'); }

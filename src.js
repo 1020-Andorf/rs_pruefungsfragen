@@ -95,12 +95,15 @@ async function login(request, env) {
 function validNum(n) { return Number.isInteger(n) && n >= 1 && n <= 9999; }
 async function loadQuestions(env, nums) {
   if (!nums.length) return [];
-  const placeholders = nums.map(() => '?').join(',');
-  const q = await env.DB.prepare(`SELECT number, question FROM questions WHERE number IN (${placeholders})`).bind(...nums).all();
-  const blocks = await env.DB.prepare(`SELECT question_number,position,content FROM answer_blocks WHERE question_number IN (${placeholders}) ORDER BY question_number,position`).bind(...nums).all();
-  const map = new Map(q.results.map(row => [row.number, { ...row, blocks: [] }]));
-  for (const block of blocks.results) map.get(block.question_number)?.blocks.push(block.content);
-  return nums.map(n => map.get(n) || { number: n, missing: true });
+  const p = nums.map(() => '?').join(',');
+  const q = await env.DB.prepare(`SELECT q.number,q.question,d.short_answer,d.subject_area,d.source_color,d.question_source_page,d.answer_source_pages,d.source_version FROM questions q LEFT JOIN question_details d ON q.number=d.question_number WHERE q.number IN (${p})`).bind(...nums).all();
+  const blocks = await env.DB.prepare(`SELECT question_number,position,content FROM answer_blocks WHERE question_number IN (${p})`).bind(...nums).all();
+  const images = await env.DB.prepare(`SELECT question_number,position,file_path FROM question_media WHERE question_number IN (${p})`).bind(...nums).all();
+  const map = new Map(q.results.map(row => [row.number, { ...row, blocks: [], content: [] }]));
+  for (const b of blocks.results) { const item = map.get(b.question_number); if(item) { item.blocks.push(b.content); item.content.push({type:'text',position:b.position,content:b.content}); } }
+  for (const m of images.results) { const item = map.get(m.question_number); if(item) item.content.push({type:'image',position:m.position,path:m.file_path}); }
+  for (const item of map.values()) item.content.sort((a,b)=>a.position-b.position);
+  return nums.map(n => map.get(n) || {number:n,missing:true});
 }
 async function api(request, env) {
   const url = new URL(request.url), path = url.pathname;
@@ -129,14 +132,27 @@ async function api(request, env) {
   if (path === '/api/questions' && method === 'PUT') {
     const data = await request.json().catch(() => ({}));
     const number = Number(data.number);
-    if (!validNum(number) || typeof data.question !== 'string' || !data.question.trim() || data.question.length > 10000 || !Array.isArray(data.blocks) || data.blocks.length > 100 || data.blocks.some(b => typeof b !== 'string' || b.length > 20000)) return error('Ungültige Frage oder Antwortbausteine.');
-    const blocks = data.blocks.map(b => b.trim()).filter(Boolean);
-    const queries = [env.DB.prepare(`INSERT INTO questions(number,question,updated_at) VALUES(?,?,datetime('now'))
-      ON CONFLICT(number) DO UPDATE SET question=excluded.question,updated_at=datetime('now')`).bind(number, data.question.trim()),
-      env.DB.prepare('DELETE FROM answer_blocks WHERE question_number = ?').bind(number),
-      ...blocks.map((content, position) => env.DB.prepare('INSERT INTO answer_blocks(question_number,position,content) VALUES(?,?,?)').bind(number, position, content))];
+    if (!validNum(number) || typeof data.question !== 'string' || !data.question.trim() || data.question.length > 10000 ||
+        typeof data.short_answer !== 'string' || data.short_answer.length > 30000 ||
+        typeof data.subject_area !== 'string' || data.subject_area.length > 200 ||
+        !Array.isArray(data.content) || data.content.length > 200 ||
+        data.content.some(item => !item || !['text','image'].includes(item.type) ||
+          (item.type === 'text' && (typeof item.content !== 'string' || item.content.length > 20000)) ||
+          (item.type === 'image' && (typeof item.path !== 'string' || !/^\/questions-media\/q\d{3}-\d{2}\.png$/.test(item.path)))))
+      return error('Ungültige Frage, Kurzantwort oder Antwortbausteine.');
+    const queries = [
+      env.DB.prepare(`INSERT INTO questions(number,question,updated_at) VALUES(?,?,datetime('now')) ON CONFLICT(number) DO UPDATE SET question=excluded.question,updated_at=datetime('now')`).bind(number,data.question.trim()),
+      env.DB.prepare(`INSERT INTO question_details(question_number,short_answer,subject_area,source_color,question_source_page,answer_source_pages,source_version) VALUES(?,?,?,?,?,?,?) ON CONFLICT(question_number) DO UPDATE SET short_answer=excluded.short_answer,subject_area=excluded.subject_area`).bind(number,data.short_answer.trim(),data.subject_area.trim(),'', '', '', ''),
+      env.DB.prepare('DELETE FROM answer_blocks WHERE question_number=?').bind(number),
+      env.DB.prepare('DELETE FROM question_media WHERE question_number=?').bind(number)
+    ];
+    for (let i=0;i<data.content.length;i++) {
+      const item=data.content[i];
+      if (item.type==='text' && item.content.trim()) queries.push(env.DB.prepare('INSERT INTO answer_blocks(question_number,position,content) VALUES(?,?,?)').bind(number,i,item.content.trim()));
+      if (item.type==='image') queries.push(env.DB.prepare('INSERT INTO question_media(question_number,position,file_path,mime_type) VALUES(?,?,?,?)').bind(number,i,item.path,'image/png'));
+    }
     await env.DB.batch(queries);
-    return json({ ok: true });
+    return json({ok:true});
   }
   if (path.startsWith('/api/questions/') && method === 'GET') {
     const number = Number(path.split('/').pop());

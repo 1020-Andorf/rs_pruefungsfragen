@@ -25,9 +25,9 @@
 
 /* V11 – sichtbare, harmonische rote Themenrahmen bei weiterhin weißen Karten. */
 :root{
-  --topic-1-border:#9F6EAF; --topic-1-text:#9F6EAF;
-  --topic-2-border:#0068AC; --topic-2-text:#0068AC;
-  --topic-3-border:#00B195; --topic-3-text:#00B195;
+  --topic-1-border:#d6808d; --topic-1-text:#ac4d5a;
+  --topic-2-border:#c99aa5; --topic-2-text:#9c6472;
+  --topic-3-border:#bf7e89; --topic-3-text:#92515d;
 }
 .topic-1{--topic-border:var(--topic-1-border);--topic-ink:var(--topic-1-text)}
 .topic-2{--topic-border:var(--topic-2-border);--topic-ink:var(--topic-2-text)}
@@ -42,3 +42,11 @@
 .summary-card .answer{background:#f9fafb;border-color:#eceff1}
 .peek-card{background:#fff;border:2px solid var(--topic-border);color:var(--topic-ink)}
 @media(max-width:700px){.number-position{padding:9px 3px 8px}.number-position .topic-caption{font-size:9px;white-space:normal;line-height:1.25;min-height:23px}}
+
+/* V12: Umschalter und eingebettete Grafiken */
+.answer-switch {display:flex;gap:6px;margin:14px 0 10px;flex-wrap:wrap}
+.answer-option {background:white;border:1.5px solid #e0e5ea;border-radius:9px;color:#17344d;padding:9px 13px;cursor:pointer;font:inherit;font-size:13px}
+.answer-option.selected {border-color:#cb5669;color:#a82542;background:#fff8fa;font-weight:700}
+.answer-image {max-width:100%;height:auto;object-fit:contain;display:block;margin:14px auto;border-radius:5px}
+.media-block {border:1px solid #e1e5e9;padding:12px;border-radius:10px}
+.media-block .answer-image {max-height:450px}
