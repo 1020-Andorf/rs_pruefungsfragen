@@ -68,7 +68,7 @@ document.addEventListener('click', function (event) {
   } finally {
     const form = document.getElementById('exam-form');
     if (form) {
-      form.reset();
+      HTMLFormElement.prototype.reset.call(form);
       form.querySelectorAll('input').forEach(input => { input.value = ''; input.defaultValue = ''; });
     }
     const summary = document.getElementById('summary');
