@@ -100,3 +100,11 @@
   .answer .answer-list li {padding-left:24px}
   .number-position .topic-caption {font-size:8px}
 }
+
+/* V14: Fachbereichsgebundene Fragennummern – dezente Hinweise und Fehlerzustand */
+.number-position .number-range { color:#667689; font-size:10px; font-weight:500; line-height:1.35; min-height:29px; display:flex; align-items:center; justify-content:center; overflow-wrap:anywhere; }
+.number-position .number-error { color:#bf253f; font-size:10px; font-weight:700; line-height:1.3; }
+.number-position .number-error:empty { display:none; }
+.number-grid .number-position.number-invalid { border-color:#c7233c; background:#fff9fa; }
+.number-grid .number-position.number-invalid input { border-color:#c7233c; box-shadow:0 0 0 2px rgba(199,35,60,.08); }
+@media (max-width:700px) {.number-position .number-range {font-size:9px;min-height:36px;}}

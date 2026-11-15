@@ -91,6 +91,7 @@ function resetExam() {
   const form = el('exam-form');
   HTMLFormElement.prototype.reset.call(form);
   for (const field of form.querySelectorAll('input')) { field.value = ''; field.defaultValue = ''; }
+  EXAM_INPUTS.forEach((field, index) => validateExamInput(field, index, {show:false}));
   clearExamResults();
   selectTab('exam');
   if (!assertExamCleared()) {
@@ -118,6 +119,36 @@ const TOPIC_NAMES = {
   2: 'Sanitätshilfe',
   3: 'Rettungswesen'
 };
+
+// Exakte Fachbereichsintervalle aus dem 300-Fragen-Katalog (V7.1, Nov. 2025).
+// ACHTUNG: Die Nummern sind je Fachbereich nicht durchgehend!
+const TOPIC_RANGES = {
+  1: [[1, 5], [10, 56], [62, 93], [283, 300]],
+  2: [[6, 9], [57, 61], [94, 189]],
+  3: [[190, 282]]
+};
+const EXAM_INPUTS = [...el('exam-form').querySelectorAll('.number-position input')];
+const topicForSlot = index => index < 2 ? 1 : index < 4 ? 2 : 3;
+const inTopic = (number, topic) => TOPIC_RANGES[topic].some(([from, to]) => number >= from && number <= to);
+const rangesLabel = topic => TOPIC_RANGES[topic].map(([from, to]) => from === to ? String(from) : `${from}–${to}`).join(', ');
+function validateExamInput(field, index, {show = true} = {}) {
+  const raw = field.value.trim();
+  const topic = topicForSlot(index);
+  const valid = !raw || (/^\d+$/.test(raw) && Number.isSafeInteger(Number(raw)) && inTopic(Number(raw), topic));
+  const holder = field.closest('.number-position');
+  const feedback = holder.querySelector('.number-error');
+  holder.classList.toggle('number-invalid', show && !valid);
+  field.setAttribute('aria-invalid', String(show && !valid));
+  if (feedback) feedback.textContent = show && !valid ? `Erlaubt: ${rangesLabel(topic)}` : '';
+  return valid;
+}
+EXAM_INPUTS.forEach((field, index) => {
+  field.min = '1'; field.max = '300'; field.step = '1';
+  field.setAttribute('aria-describedby', `number-hint-${index+1} number-error-${index+1}`);
+  field.addEventListener('input', () => validateExamInput(field, index));
+  field.addEventListener('blur', () => validateExamInput(field, index));
+});
+
 
 // Rendert die vorhandenen Original-Textbausteine, ohne deren Wortlaut zu verändern.
 // Abschnitte vor Listen werden als Untertitel dargestellt, Aufzählungen als ruhige Listenzeilen.
@@ -276,6 +307,11 @@ el('exam-form').addEventListener('submit', async e => {
   const fields = [...el('exam-form').querySelectorAll('input')];
   const selectedSlots = fields.map((field, index) => ({ value: field.value.trim(), position: index })).filter(slot => slot.value);
   const entries = selectedSlots.map(slot => slot.value);
+  const badSlot = EXAM_INPUTS.findIndex((field, index) => !validateExamInput(field, index));
+  if (badSlot !== -1) {
+    EXAM_INPUTS[badSlot].focus();
+    return message('exam-message', `Frage ${badSlot + 1}: Diese Nummer gehört nicht zu ${TOPIC_NAMES[topicForSlot(badSlot)]}. Erlaubt: ${rangesLabel(topicForSlot(badSlot))}.`, 'error');
+  }
   if (!entries.length || entries.length > 5 || entries.some(s => !/^\d+$/.test(s) || !Number.isInteger(Number(s)) || Number(s)<1 || Number(s)>9999)) {
     return message('exam-message', 'Bitte 1 bis 5 gültige Fragennummern eingeben.', 'error');
   }
