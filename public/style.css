@@ -25,9 +25,9 @@
 
 /* V11 – sichtbare, harmonische rote Themenrahmen bei weiterhin weißen Karten. */
 :root{
-  --topic-1-border:#d6808d; --topic-1-text:#ac4d5a;
-  --topic-2-border:#c99aa5; --topic-2-text:#9c6472;
-  --topic-3-border:#bf7e89; --topic-3-text:#92515d;
+  --topic-1-border:#9F6EAF; --topic-1-text:#9F6EAF;
+  --topic-2-border:#0068AC; --topic-2-text:#0068AC;
+  --topic-3-border:#00B195; --topic-3-text:#00B195;
 }
 .topic-1{--topic-border:var(--topic-1-border);--topic-ink:var(--topic-1-text)}
 .topic-2{--topic-border:var(--topic-2-border);--topic-ink:var(--topic-2-text)}
