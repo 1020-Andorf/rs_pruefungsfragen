@@ -51,4 +51,51 @@
 </dialog>
 </main>
 <div id="print-sheet" aria-hidden="true"></div>
-<script src="/app.js?v=7" defer></script></body></html>
+<script>
+// V8 Notfall-Reset: wird vor dem externen App-Skript installiert.
+// Löscht die Darstellung unabhängig davon, ob die App-Funktion fehlerfrei durchläuft.
+document.addEventListener('click', function (event) {
+  const button = event.target instanceof Element ? event.target.closest('[data-reset-exam]') : null;
+  if (!button) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  let appError = null;
+  try {
+    if (typeof window.rsResetExam === 'function') window.rsResetExam();
+  } catch (error) {
+    appError = error;
+    console.error('[RS Reset V8] Fehler in App-Reset, Notfall-Reset übernimmt:', error);
+  } finally {
+    const form = document.getElementById('exam-form');
+    if (form) {
+      form.reset();
+      form.querySelectorAll('input').forEach(input => { input.value = ''; input.defaultValue = ''; });
+    }
+    const summary = document.getElementById('summary');
+    if (summary) {
+      summary.replaceChildren();
+      summary.hidden = true;
+      summary.style.display = 'none';
+      summary.setAttribute('aria-hidden', 'true');
+    }
+    const printSheet = document.getElementById('print-sheet');
+    if (printSheet) printSheet.replaceChildren();
+    const dialog = document.getElementById('print-dialog');
+    if (dialog?.open) dialog.close();
+    const status = document.getElementById('exam-message');
+    if (status) {
+      status.textContent = 'Zurückgesetzt – neue Fragennummern eingeben.';
+      status.className = 'message ok';
+    }
+    document.getElementById('exam-start')?.scrollIntoView({block: 'start'});
+    form?.querySelector('input')?.focus({preventScroll: true});
+    console.info('[RS Reset V8] DOM-Test', {
+      felderLeer: !form || [...form.querySelectorAll('input')].every(input => input.value === ''),
+      kartenEntfernt: !summary || summary.childElementCount === 0,
+      druckLeer: !printSheet || printSheet.childElementCount === 0,
+      appResetFehler: !!appError
+    });
+  }
+}, true);
+</script>
+<script src="/app.js?v=8" defer></script></body></html>

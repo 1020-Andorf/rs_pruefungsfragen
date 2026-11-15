@@ -99,9 +99,9 @@ function resetExam() {
   }
   const form = el('exam-form');
   form.reset();
-  for (const field of form.querySelectorAll('input')) field.value = '';
+  for (const field of form.querySelectorAll('input')) { field.value = ''; field.defaultValue = ''; }
   clearExamResults();
-  if (el('print-dialog').open) el('print-dialog').close();
+  if (el('print-dialog')?.open) el('print-dialog').close();
   selectTab('exam');
   if (!assertExamCleared()) {
     // Sicherheitsnetz: vollständigen Ergebnisbereich durch frischen Knoten ersetzen.
@@ -119,14 +119,10 @@ function resetExam() {
   form.querySelector('input')?.focus({ preventScroll: true });
   console.info('[RS Prüfungsfragen] Reset abgeschlossen', {reset: currentReset, ok: assertExamCleared()});
 }
+window.rsResetExam = resetExam;
 // Event-Delegation erfasst Reset sowohl oben als auch nach den Antworten.
 // Bewusst nur EIN Handler: verhindert versehentliche Mehrfachausführung.
-document.addEventListener('click', event => {
-  const resetButton = event.target.closest('[data-reset-exam]');
-  if (!resetButton) return;
-  event.preventDefault();
-  resetExam();
-});
+// Reset buttons are handled by a capture-phase safety handler embedded in index.html.
 // Print-Dialog: erst Metadaten erfassen, dann drucken oder als PDF speichern.
 document.addEventListener('click', event => {
   if (event.target.closest('#print')) {
