@@ -56,22 +56,14 @@ function setSummaryVisibility(visible) {
   summary.style.display = visible ? '' : 'none';
   summary.setAttribute('aria-hidden', String(!visible));
 }
-function clearPrintData() {
-  const sheet = el('print-sheet');
-  if (sheet) sheet.replaceChildren();
-  const form = el('print-meta-form');
-  if (form) HTMLFormElement.prototype.reset.call(form);
-}
 function assertExamCleared() {
   const summary = el('summary');
-  const sheet = el('print-sheet');
   const cleared = summary.childElementCount === 0 && summary.hidden &&
-    summary.style.display === 'none' && !displayedQuestions.length &&
-    (!sheet || sheet.childElementCount === 0);
+    summary.style.display === 'none' && !displayedQuestions.length;
   if (!cleared) console.error('[RS Prüfungsfragen] Reset-Prüfung fehlgeschlagen', {
     children: summary.childElementCount, hidden: summary.hidden,
     display: summary.style.display, questions: displayedQuestions.length,
-    printChildren: sheet?.childElementCount
+    // Kein zusätzlicher Druckbereich vorhanden.
   });
   return cleared;
 }
@@ -79,11 +71,10 @@ function assertExamCleared() {
 function clearExamResults() {
   displayedQuestions = [];
   activeQuestionIndex = 0;
-  // Sowohl die sichtbare Ansicht als auch den getrennten Druckbaum löschen.
+  // Sichtbare Fragenkarten vollständig entfernen.
   const summary = el('summary');
   setSummaryVisibility(false);
   summary.replaceChildren();
-  clearPrintData();
   if (pendingFocusTimer !== null) {
     window.clearTimeout(pendingFocusTimer);
     pendingFocusTimer = null;
@@ -101,7 +92,6 @@ function resetExam() {
   HTMLFormElement.prototype.reset.call(form);
   for (const field of form.querySelectorAll('input')) { field.value = ''; field.defaultValue = ''; }
   clearExamResults();
-  if (el('print-dialog')?.open) el('print-dialog').close();
   selectTab('exam');
   if (!assertExamCleared()) {
     // Sicherheitsnetz: vollständigen Ergebnisbereich durch frischen Knoten ersetzen.
@@ -123,50 +113,6 @@ window.rsResetExam = resetExam;
 // Event-Delegation erfasst Reset sowohl oben als auch nach den Antworten.
 // Bewusst nur EIN Handler: verhindert versehentliche Mehrfachausführung.
 // Reset buttons are handled by a capture-phase safety handler embedded in index.html.
-// Print-Dialog: erst Metadaten erfassen, dann drucken oder als PDF speichern.
-document.addEventListener('click', event => {
-  if (event.target.closest('#print')) {
-    if (!displayedQuestions.length) return;
-    el('print-dialog').showModal();
-    el('print-place').focus();
-  }
-});
-el('print-cancel').addEventListener('click', () => el('print-dialog').close());
-el('print-meta-form').addEventListener('submit', event => {
-  event.preventDefault();
-  if (!displayedQuestions.length || !el('summary').childElementCount) return;
-  const place = el('print-place').value.trim();
-  const dateValue = el('print-date').value;
-  const participant = el('print-participant').value.trim();
-  if (!place || !dateValue || !participant) return;
-  renderPrintSheet({place, dateValue, participant});
-  el('print-dialog').close();
-  window.print();
-});
-function renderPrintSheet({place,dateValue,participant}) {
-  const sheet = el('print-sheet');
-  sheet.replaceChildren();
-  const header = document.createElement('header');
-  header.className = 'print-heading';
-  const headline = document.createElement('h1');
-  headline.textContent = 'RS Prüfungsfragen';
-  const meta = document.createElement('div');
-  meta.className = 'print-meta';
-  for (const [label, value] of [
-    ['Prüfungsort', place],
-    ['Termin', new Date(dateValue+'T12:00:00').toLocaleDateString('de-AT', {day:'2-digit',month:'2-digit',year:'numeric'})],
-    ['Teilnehmername', participant]
-  ]) {
-    const item = document.createElement('div');
-    const key = document.createElement('strong'); key.textContent = label + ': ';
-    item.append(key, document.createTextNode(value)); meta.append(item);
-  }
-  header.append(headline,meta);
-  const questions = document.createElement('div'); questions.className='print-questions';
-  for (const q of displayedQuestions) questions.append(createQuestionCard(q));
-  sheet.append(header, questions);
-}
-
 function createQuestionCard(q) {
   const card = document.createElement('article'); card.className = 'summary-card topic-' + (q._topic || 1);
   const pill = document.createElement('span'); pill.className = 'pill'; pill.textContent = `Frage ${q.number}`; card.append(pill);
@@ -214,10 +160,6 @@ function renderQuestionCarousel() {
 function prepareSummary() {
   const summary = el('summary');
   summary.replaceChildren();
-  const heading = document.createElement('div'); heading.className = 'section-head space-top';
-  const title = document.createElement('h2'); title.textContent = 'Prüfungszusammenfassung';
-  const print = document.createElement('button'); print.id = 'print'; print.type = 'button'; print.className = 'button secondary'; print.textContent = 'Drucken / PDF';
-  heading.append(title, print);
   const carousel = document.createElement('div'); carousel.className = 'question-carousel';
   const prev = document.createElement('button'); prev.type='button'; prev.id='carousel-prev'; prev.className='nav-arrow'; prev.textContent='‹'; prev.setAttribute('aria-label','Vorherige Frage'); prev.addEventListener('click',()=>moveQuestion(-1));
   const next = document.createElement('button'); next.type='button'; next.id='carousel-next'; next.className='nav-arrow'; next.textContent='›'; next.setAttribute('aria-label','Nächste Frage'); next.addEventListener('click',()=>moveQuestion(1));
@@ -230,7 +172,7 @@ function prepareSummary() {
   carousel.append(prev,stage,next);
   const actions = document.createElement('div'); actions.className = 'action-row space-top';
   const reset = document.createElement('button'); reset.type='button'; reset.className='button secondary'; reset.dataset.resetExam=''; reset.textContent='↻ Zurücksetzen'; actions.append(reset);
-  summary.append(heading,carousel,counter,actions);
+  summary.append(carousel,counter,actions);
   setSummaryVisibility(true);
 }
 el('exam-form').addEventListener('submit', async e => {

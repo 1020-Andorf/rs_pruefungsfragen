@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#f6f7f8"><title>RS Prüfungsfragen</title><link rel="stylesheet" href="/style.css?v=9"></head>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#f6f7f8"><title>RS Prüfungsfragen</title><link rel="stylesheet" href="/style.css?v=10"></head>
 <body><main class="main">
 <section id="login-panel" class="login-wrap">
   <h1 class="page-title">RS <span>Prüfungsfragen</span></h1>
@@ -31,7 +31,7 @@
     </div><div class="action-row"><button class="button primary" type="submit">Fragen anzeigen</button><button class="button secondary" id="reset" data-reset-exam type="button">↻ Zurücksetzen</button></div><p class="message" id="exam-message" role="status"></p></form>
   </section>
   <section id="summary" hidden aria-live="polite"></section></div>
-  <div id="admin-view" hidden><div class="action-row admin-back"><button id="back-to-exam" class="button secondary" type="button">← Zurück zu den Prüfungsfragen</button></div><section class="card"><div class="section-head"><h2>Fragenkatalog bearbeiten</h2><a class="button secondary" href="/api/export" id="export-link">JSON exportieren</a></div><div class="search-grid"><label>Fragen suchen<input id="question-search" placeholder="Nummer oder Suchwort"></label><button class="button secondary" id="new-question" type="button">+ Neue Frage</button></div><div id="question-list" class="question-list"></div></section><section class="card space-top" id="edit-panel">
+  <div id="admin-view" hidden><div class="action-row admin-back"><button id="back-to-exam" class="button secondary" type="button">← Zurück zu den Prüfungsfragen</button></div><section class="card"><div class="section-head"><h2>Fragenkatalog bearbeiten</h2></div><div class="search-grid"><label>Fragen suchen<input id="question-search" placeholder="Nummer oder Suchwort"></label><button class="button secondary" id="new-question" type="button">+ Neue Frage</button></div><div id="question-list" class="question-list"></div></section><section class="card space-top" id="edit-panel">
   <div class="section-head"><h2>Frage bearbeiten</h2><span class="section-hint" id="edit-position">Frage auswählen</span></div>
   <div class="admin-navigator" id="admin-navigator" hidden aria-label="Zwischen Fragen wechseln">
     <button type="button" id="admin-prev" class="nav-arrow" aria-label="Vorherige Frage">‹</button>
@@ -39,18 +39,7 @@
     <button type="button" id="admin-next" class="nav-arrow" aria-label="Nächste Frage">›</button>
   </div><form id="edit-form" class="form-stack"><label>Fragennummer<input id="edit-number" type="number" min="1" max="9999" required></label><label>Vollständige Prüfungsfrage<textarea id="edit-question" rows="4" required></textarea></label><div class="section-head"><h3>Antwortbausteine</h3><button id="add-block" type="button" class="button secondary">+ Baustein</button></div><div id="blocks" class="form-stack"></div><div class="action-row"><button class="button primary" type="submit">Änderungen speichern</button><button class="button secondary" type="button" id="cancel-edit">Eingaben zurücksetzen</button></div><p id="edit-message" class="message" role="status"></p></form></section></div>
 </section>
-<dialog id="print-dialog" aria-labelledby="print-dialog-title" class="print-dialog">
- <form id="print-meta-form" class="form-stack">
-  <h2 id="print-dialog-title">Drucken / PDF exportieren</h2>
-  <p class="subtle">Diese Angaben erscheinen in der Kopfzeile des Prüfungsbogens und werden nicht gespeichert.</p>
-  <label>Prüfungsort<input id="print-place" maxlength="150" autocomplete="off" required placeholder="z. B. Andorf"></label>
-  <label>Termin<input id="print-date" type="date" required></label>
-  <label>Teilnehmername<input id="print-participant" maxlength="150" autocomplete="off" required placeholder="Vor- und Nachname"></label>
-  <div class="action-row"><button class="button primary" type="submit">Drucken / Als PDF speichern</button><button class="button secondary" id="print-cancel" type="button">Abbrechen</button></div>
- </form>
-</dialog>
 </main>
-<div id="print-sheet" aria-hidden="true"></div>
 <script>
 // V8 Notfall-Reset: wird vor dem externen App-Skript installiert.
 // Löscht die Darstellung unabhängig davon, ob die App-Funktion fehlerfrei durchläuft.
@@ -78,10 +67,6 @@ document.addEventListener('click', function (event) {
       summary.style.display = 'none';
       summary.setAttribute('aria-hidden', 'true');
     }
-    const printSheet = document.getElementById('print-sheet');
-    if (printSheet) printSheet.replaceChildren();
-    const dialog = document.getElementById('print-dialog');
-    if (dialog?.open) dialog.close();
     const status = document.getElementById('exam-message');
     if (status) {
       status.textContent = 'Zurückgesetzt – neue Fragennummern eingeben.';
@@ -92,10 +77,9 @@ document.addEventListener('click', function (event) {
     console.info('[RS Reset V8] DOM-Test', {
       felderLeer: !form || [...form.querySelectorAll('input')].every(input => input.value === ''),
       kartenEntfernt: !summary || summary.childElementCount === 0,
-      druckLeer: !printSheet || printSheet.childElementCount === 0,
       appResetFehler: !!appError
     });
   }
 }, true);
 </script>
-<script src="/app.js?v=9" defer></script></body></html>
+<script src="/app.js?v=10" defer></script></body></html>
