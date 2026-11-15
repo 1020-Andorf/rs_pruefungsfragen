@@ -23,22 +23,22 @@
 @media(max-width:650px){.question-carousel{grid-template-columns:30px minmax(0,1fr) 30px;gap:5px}.question-carousel .nav-arrow{width:30px;height:44px}.carousel-stage{grid-template-columns:minmax(0,.075fr) minmax(0,1fr) minmax(0,.075fr);gap:4px}.carousel-slot.selected .summary-card{padding:15px}.peek-card{padding:3px 1px}.peek-card span{font-size:10px}.admin-navigator{grid-template-columns:32px 1fr 32px;gap:6px}.admin-navigator .nav-arrow{width:32px}}
 
 
-/* V10 – Themenblöcke werden ausschließlich durch sehr dezente Rahmen unterschieden. */
+/* V11 – sichtbare, harmonische rote Themenrahmen bei weiterhin weißen Karten. */
 :root{
-  --topic-1-border:#cad9e8; --topic-1-text:#526d89;
-  --topic-2-border:#ceded2; --topic-2-text:#577660;
-  --topic-3-border:#e4d9c8; --topic-3-text:#8a7660;
+  --topic-1-border:#d6808d; --topic-1-text:#ac4d5a;
+  --topic-2-border:#c99aa5; --topic-2-text:#9c6472;
+  --topic-3-border:#bf7e89; --topic-3-text:#92515d;
 }
 .topic-1{--topic-border:var(--topic-1-border);--topic-ink:var(--topic-1-text)}
 .topic-2{--topic-border:var(--topic-2-border);--topic-ink:var(--topic-2-text)}
 .topic-3{--topic-border:var(--topic-3-border);--topic-ink:var(--topic-3-text)}
-.number-position{border:1.5px solid var(--topic-border);background:#fff;padding:12px 8px 10px;border-radius:14px;gap:7px!important;min-width:0}
+.number-position{border:2px solid var(--topic-border);background:#fff;padding:12px 8px 10px;border-radius:14px;gap:7px!important;min-width:0}
 .number-position .question-position-title{font-weight:700;color:var(--text)}
 .number-position .topic-caption{color:var(--topic-ink);font-size:11px;font-weight:600;white-space:nowrap}
 .number-grid .number-position input{border:1px solid #dee3e8;background:#fff}
 .number-grid .number-position input:focus{border-color:var(--topic-border);box-shadow:0 0 0 3px #f3f6f8}
-.carousel-slot.selected .summary-card{border:2px solid var(--topic-border);background:#fff;box-shadow:0 5px 20px rgba(16,45,71,.035)}
+.carousel-slot.selected .summary-card{border:2.5px solid var(--topic-border);background:#fff;box-shadow:0 5px 20px rgba(16,45,71,.035)}
 .summary-card .pill{background:#f6f7f8;color:var(--topic-ink)}
 .summary-card .answer{background:#f9fafb;border-color:#eceff1}
-.peek-card{background:#fff;border-color:var(--topic-border);color:var(--topic-ink)}
+.peek-card{background:#fff;border:2px solid var(--topic-border);color:var(--topic-ink)}
 @media(max-width:700px){.number-position{padding:9px 3px 8px}.number-position .topic-caption{font-size:9px;white-space:normal;line-height:1.25;min-height:23px}}
