@@ -98,7 +98,7 @@ function resetExam() {
     examRequestController = null;
   }
   const form = el('exam-form');
-  form.reset();
+  HTMLFormElement.prototype.reset.call(form);
   for (const field of form.querySelectorAll('input')) { field.value = ''; field.defaultValue = ''; }
   clearExamResults();
   if (el('print-dialog')?.open) el('print-dialog').close();
