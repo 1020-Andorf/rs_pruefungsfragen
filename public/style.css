@@ -58,7 +58,7 @@
   --topic-2-border:#0068AC; --topic-2-text:#00608F;
   --topic-3-border:#00B195; --topic-3-text:#007E6B;
 }
-.number-position .topic-caption {font-size:10px;line-height:1.35;white-space:normal;min-height:29px;display:flex;align-items:center;justify-content:center;text-align:center;overflow-wrap:anywhere}
+.number-position .topic-caption {font-size:13px;line-height:1.35;white-space:normal;min-height:29px;display:flex;align-items:center;justify-content:center;text-align:center;overflow-wrap:anywhere}
 .number-grid {align-items:stretch}
 .number-grid .number-position {height:100%;grid-template-rows:auto auto 1fr}
 #summary {margin-top:18px}
