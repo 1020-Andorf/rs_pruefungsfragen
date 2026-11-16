@@ -106,11 +106,3 @@
 .number-position .number-error:empty { display:none; }
 .number-grid .number-position.number-invalid { border-color:#c7233c; background:#fff9fa; }
 .number-grid .number-position.number-invalid input { border-color:#c7233c; box-shadow:0 0 0 2px rgba(199,35,60,.08); }
-
-
-/* Beschriftung Frage 1 bis Frage 5 */
-.number-position label {
-  font-size: 13px;
-  font-weight: 700;
-}
-
